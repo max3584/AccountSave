@@ -1,31 +1,59 @@
 package module.delete;
 
+import java.util.ArrayList;
+
 import parameter.SqlParameter;
 
 public class SiteAccountDelete implements ASFDelete {
 
-	private SqlParameter param;
-	private String sql;
+	private ArrayList<SqlParameter> params;
+	private ArrayList<String> sqls;
 	
 	private SiteAccountDelete(int num) {
-		this.param = new SqlParameter(num);
+		this.params = new ArrayList<SqlParameter>(num);
+		this.sqls = new ArrayList<String>(num);
 	}
 	
 	public SiteAccountDelete(String siteName, String id) {
 		this(2);
-		this.sql = "delete from (select * from site_account site left outer join site_account_secret_data secret using (secret_id) where site_name = ? and id = ?)";
-		this.param.addParameter(siteName);
-		this.param.addParameter(id);
+		this.sqls.add("delete from site_account where site_name = ? and id = ?;");
+		this.params.add(new SqlParameter(0));
+		SqlParameter param = this.params.get(this.params.size() - 1);
+		param.addParameter(siteName);
+		param.addParameter(id);
+	}
+	
+	public SiteAccountDelete(String siteName, String id, String secretWord) {
+		this(siteName, id);
+		this.sqls.add("delete from site_account_secret_data where secret_id = ?;");
+		this.params.add(new SqlParameter(0));
+		SqlParameter param = this.params.get(this.params.size() - 1);
+		param.addParameter(secretWord);
 	}
 	
 	@Override
-	public String getSQL() {
-		return this.sql;
+	@Deprecated public String getSQL() {
+		return null;
 	}
 
 	@Override
-	public SqlParameter getParam() {
-		return this.param;
+	@Deprecated public SqlParameter getParam() {
+		return null;
 	}
 
+	protected String getSQL(int index) {
+		return this.sqls.get(index);
+	}
+	
+	protected SqlParameter getParam(int index) {
+		return this.params.get(index);
+	}
+	
+	public ArrayList<String> getSqls() {
+		return this.sqls;
+	}
+	
+	public ArrayList<SqlParameter> getParams() {
+		return this.params;
+	}
 }

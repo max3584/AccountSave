@@ -17,6 +17,7 @@ import data.account.SiteAccount;
 import data.change.CAMail;
 import data.change.CASite;
 import data.db.DBConnectionInterface;
+import data.link.SecretId;
 import data.link.SiteList;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
@@ -29,9 +30,12 @@ import javafx.scene.input.DataFormat;
 import module.delete.MailAccountDelete;
 import module.delete.SiteAccountDelete;
 import module.registration.MailRegistration;
+import module.registration.MailToSiteLinkRegistration;
 import module.registration.SiteAccountRegistration;
 import module.search.AccountSearch;
 import module.search.ChangeAccountSearch;
+import module.search.SecretIdSearch;
+import module.search.SiteNameSearch;
 import module.update.MailAccountUpdate;
 import module.update.SiteAccountUpdate;
 
@@ -158,6 +162,7 @@ public class AccountController implements Initializable {
 		this.accRegistSite.setText("");
 		this.accRegistID.setText("");
 		this.accRegistPass.setText("");
+		this.accRegistMail.setText("");
 		this.accRegistSecret.setText("");
 	}
 
@@ -179,6 +184,11 @@ public class AccountController implements Initializable {
 		this.changeSite.setText("");
 		this.changeAccountList.getItems().clear();
 		this.changeAccounts.clear();
+		
+		this.changeLabelSiteNamePrint.setText("---");
+		this.changeLabelIDPrint.setText("---");
+		this.changeLabelPasswordPrint.setText("---");
+		this.changeLabelSecretPrint.setText("---");
 	}
 
 	@FXML
@@ -313,7 +323,8 @@ public class AccountController implements Initializable {
 		MailRegistration mr = new MailRegistration(siteName, mail, password);
 
 		this.database.insert(mr.getSQL(), mr.getParam());
-
+		this.database.commit();
+		
 		this.mailRegistSite.clear();
 		this.mailRegistAddress.clear();
 		this.mailRegistPass.clear();
@@ -331,12 +342,26 @@ public class AccountController implements Initializable {
 				? new SiteAccountRegistration(siteName, id, password, mail)
 				: new SiteAccountRegistration(siteName, id, password, mail, secret);
 
-		this.database.insert(sar.getSQL(), sar.getParam());
-
-		this.accRegistSite.clear();
-		this.accRegistID.clear();
-		this.accRegistPass.clear();
-		this.accRegistSecret.clear();
+		for (int i = 0; i < sar.getSqls().size() && i < sar.getParams().size(); i++) {
+			this.database.insert(sar.getSqls().get(i), sar.getParams().get(i));
+		}
+		this.database.commit();
+		
+		SiteNameSearch search = new SiteNameSearch(siteName);
+		
+		List<SiteList> siteNames = this.database.selectList(search.getSQL(), SiteList.class, search.getParam());
+		
+		if (siteNames.size() > 0) {
+			MailToSiteLinkRegistration link = new MailToSiteLinkRegistration(siteName, mail);
+			this.database.insert(link.getSQL(), link.getParam());
+		}
+		this.database.commit();
+		
+		this.accRegistSite.setText("");;
+		this.accRegistID.setText("");
+		this.accRegistMail.setText("");
+		this.accRegistPass.setText("");
+		this.accRegistSecret.setText("");
 	}
 
 	@FXML
@@ -489,6 +514,7 @@ public class AccountController implements Initializable {
 			default:
 				break;
 			}
+			this.database.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -522,21 +548,30 @@ public class AccountController implements Initializable {
 
 		String siteName = this.changeLabelSiteNamePrint.getText();
 		try {
+			int num = -1;
 			switch (selectTable) {
 			case "サイトアカウント":
 				String id = this.changeLabelIDPrint.getText();
+				String secret = this.changeLabelSecretPrint.getText();
 				SiteAccountDelete site = new SiteAccountDelete(siteName, id);
-				this.database.delete(site.getSQL(), site.getParam());
+				if (!secret.equals("---")) {
+					SecretIdSearch query = new SecretIdSearch(siteName, id);
+					List<SecretId> secretIDs = this.database.selectList(query.getSQL(), SecretId.class, query.getParam());
+					site = new SiteAccountDelete(siteName, id, secretIDs.get(0).getSecret_id());
+					num = this.database.delete(site.getSqls().get(1), site.getParams().get(1)) - 1;
+				}
+				num += this.database.delete(site.getSqls().get(0), site.getParams().get(0)) + 1;
 				break;
 			case "メールアドレス":
 				String address = this.changeLabelMailPrint.getText();
 				MailAccountDelete mail = new MailAccountDelete(siteName, address);
-				this.database.delete(mail.getSQL(), mail.getParam());
+				num = this.database.delete(mail.getSQL(), mail.getParam());
 				break;
 			default:
 				break;
 			}
-		} catch (Exception e) {
+			System.out.println(num);
+		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
 			this.changeLabelSecretPrint.setText("(このアカウントは削除されました!!)");
