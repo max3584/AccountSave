@@ -197,7 +197,7 @@
                            </HBox.margin>
                         </Label>
                         <TextField fx:id="siteName" onAction="#accSearch" />
-                        <ComboBox fx:id="siteList" editable="true" onAction="#onSiteList" promptText="サイト一覧">
+                        <ComboBox fx:id="siteList" editable="true" onAction="#onSiteList" prefHeight="25.0" prefWidth="112.0" promptText="サイト一覧">
                            <cursor>
                               <Cursor fx:constant="DEFAULT" />
                            </cursor>
@@ -328,7 +328,7 @@
                            </HBox.margin>
                         </Label>
                         <TextField fx:id="changeSite" onAction="#onChangeSite" />
-                        <ComboBox fx:id="changeSelect" promptText="テーブル選択" visibleRowCount="10">
+                        <ComboBox fx:id="changeSelect" onAction="#onChangeSite" promptText="テーブル選択" visibleRowCount="10">
                            <HBox.margin>
                               <Insets left="10.0" />
                            </HBox.margin>

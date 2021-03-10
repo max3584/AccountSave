@@ -38,6 +38,7 @@ import module.search.SecretIdSearch;
 import module.search.SiteNameSearch;
 import module.update.MailAccountUpdate;
 import module.update.SiteAccountUpdate;
+import parameter.SqlParameter;
 
 public class AccountController implements Initializable {
 
@@ -134,7 +135,7 @@ public class AccountController implements Initializable {
 		/* メールアドレス表示用のボックス初期設定 */
 		this.siteList.setVisible(false);
 		this.siteList.setManaged(false);
-		this.siteList.setPromptText("メールアドレス一覧");
+		this.siteList.setPromptText("サイト一覧");
 
 		/* アプリケーション初期設定 */
 		this.accounts = new ArrayList<AccountData>(0);
@@ -425,6 +426,11 @@ public class AccountController implements Initializable {
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
+		} finally {
+			if (changeAccountList.getItems().size() == 1) {
+				this.changeAccountList.getSelectionModel().select(0);
+				this.onFindChangeAccount();
+			}
 		}
 
 	}
@@ -514,7 +520,6 @@ public class AccountController implements Initializable {
 			default:
 				break;
 			}
-			this.database.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -533,13 +538,18 @@ public class AccountController implements Initializable {
 		if (!newPassword.equals("")) {
 			sau.addPassword(site.getSiteName(), site.getId(), newPassword);
 		}
-
-		this.database.update(sau.getSQL(), sau.getParam());
+		ArrayList<String> sqls = sau.getSqls();
+		ArrayList<SqlParameter> params = sau.getParams();
+		for (int i = 0; i < sqls.size() && i < params.size(); i++) {
+			this.database.update(sqls.get(i), params.get(i));
+		}
+		this.database.commit();
 	}
 
 	private void changeMailAccount(CAMail mail, String newPassword) throws SQLException {
 		MailAccountUpdate mau = new MailAccountUpdate(mail.getSite_name(), mail.getMail(), newPassword);
 		this.database.update(mau.getSQL(), mau.getParam());
+		this.database.commit();
 	}
 
 	@FXML
@@ -548,7 +558,6 @@ public class AccountController implements Initializable {
 
 		String siteName = this.changeLabelSiteNamePrint.getText();
 		try {
-			int num = -1;
 			switch (selectTable) {
 			case "サイトアカウント":
 				String id = this.changeLabelIDPrint.getText();
@@ -558,19 +567,26 @@ public class AccountController implements Initializable {
 					SecretIdSearch query = new SecretIdSearch(siteName, id);
 					List<SecretId> secretIDs = this.database.selectList(query.getSQL(), SecretId.class, query.getParam());
 					site = new SiteAccountDelete(siteName, id, secretIDs.get(0).getSecret_id());
-					num = this.database.delete(site.getSqls().get(1), site.getParams().get(1)) - 1;
+					this.database.delete(site.getSqls().get(1), site.getParams().get(1));
 				}
-				num += this.database.delete(site.getSqls().get(0), site.getParams().get(0)) + 1;
+				this.database.delete(site.getSqls().get(0), site.getParams().get(0));
 				break;
 			case "メールアドレス":
 				String address = this.changeLabelMailPrint.getText();
 				MailAccountDelete mail = new MailAccountDelete(siteName, address);
-				num = this.database.delete(mail.getSQL(), mail.getParam());
+				mail.addDelete(siteName, address);
+				mail.addAllLinkDelete(address);
+				ArrayList<String> sqls = mail.getSqls();
+				ArrayList<SqlParameter> params = mail.getParams();
+				for (int i = 0; i< sqls.size() && i < params.size(); i++) {
+					this.database.delete(sqls.get(i), params.get(i));
+				}
+				
 				break;
 			default:
 				break;
 			}
-			System.out.println(num);
+			this.database.commit();
 		} catch (SQLException e) {
 			e.printStackTrace();
 		} finally {
